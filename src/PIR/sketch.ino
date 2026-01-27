@@ -3,7 +3,7 @@
 #define PIR 13
 
 bool alarmeDisparado = false;
-unsigned long ultimoTempoPisca = 0; // "unsigned" é melhor para millis()
+unsigned long ultimoTempoPisca = 0;
 const long intervalo = 150; 
 int estadoLed = LOW; 
 
@@ -41,14 +41,12 @@ void loop() {
     if(Serial.available() > 0) {
       String entrada = Serial.readStringUntil('\n');
       entrada.trim();         // Remove espaços e quebras de linha (\n)
-      entrada.toUpperCase();  // Transforma tudo em maiúsculo para facilitar
       
       desativarPorSenha(entrada);
     }
   }
 }
 
-// --- FUNÇÃO SOLICITADA ---
 void desativarPorSenha(String senha) {
   // Verifica se a senha é exatamente "SENAC"
   if (senha == "SENAC") {
@@ -81,9 +79,9 @@ void piscaLed() {
   unsigned long tempoAtual = millis();
   if(tempoAtual - ultimoTempoPisca >= intervalo) {
     ultimoTempoPisca = tempoAtual;
-    
-    // Inversão simples do estado (toggle)
+  
     estadoLed = !estadoLed; 
     digitalWrite(LED_AZUL, estadoLed);
   }
+
 }
