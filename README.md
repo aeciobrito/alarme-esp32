@@ -11,63 +11,87 @@ A seguir, as etapas do processo de desenvolvimento.
 #define PIR 13
 
 bool alarmeDisparado = false;
-long ultimoTempoPisca = 0;  // Última vez que olhei o relógio
-const long intervalo = 150; // Intervalo de 'piscagem'
-int estadoLed = LOW;        // Alterar o estado do LED
+unsigned long ultimoTempoPisca = 0; // "unsigned" é melhor para millis()
+const long intervalo = 150; 
+int estadoLed = LOW; 
 
 void setup() {
   Serial.begin(115200);
 
   pinMode(BOTAO, INPUT);
   pinMode(LED_AZUL, OUTPUT);
-  digitalWrite(LED_AZUL, LOW); // COMEÇA DESLIGADO
+  digitalWrite(LED_AZUL, LOW); 
   pinMode(PIR, INPUT);
 
-  Serial.println("Sistema de Alarme com Reset por Botao - Iniciado");
+  Serial.println("Sistema de Alarme - Iniciado");
+  Serial.println("Digite 'SENAC' no monitor serial para desativar quando disparar.");
   Serial.println("Aguarde a estabilização do sensor PIR...");
   delay(5000);
   Serial.println("Sistema Pronto para Uso.");
 }
 
 void loop() {
-  // Se o alarme não estiver disparado, verifica se há movimento
+  // PARTE 1: Monitoramento (Só se não estiver disparado)
   if(!alarmeDisparado) {
     int estadoPir = digitalRead(PIR);
-    if(estadoPir == HIGH) { // tendo movimento
+    if(estadoPir == HIGH) { 
       Serial.println("ALERTA: Movimento Detectado!");
       alarmeDisparado = true;
     }
   }
 
-  // Se o alarme estiver disparado, fica piscando e verifica botão de reset
+  // PARTE 2: Ações quando disparado
   if(alarmeDisparado) {
-    piscaLed();
-    verificarBotao();
+    piscaLed();       // Pisca sem travar (millis)
+    verificarBotao(); // Verifica botão físico
+    
+    // Nova função: Verifica o monitor serial
+    if(Serial.available() > 0) {
+      String entrada = Serial.readStringUntil('\n');
+      entrada.trim();         // Remove espaços e quebras de linha (\n)
+      entrada.toUpperCase();  // Transforma tudo em maiúsculo para facilitar
+      
+      desativarPorSenha(entrada);
+    }
+  }
+}
+
+// --- FUNÇÃO SOLICITADA ---
+void desativarPorSenha(String senha) {
+  // Verifica se a senha é exatamente "SENAC"
+  if (senha == "SENAC") {
+    Serial.println("SENHA CORRETA: Alarme desativado via Serial.");
+    alarmeDisparado = false;
+    digitalWrite(LED_AZUL, LOW);
+    
+    // Pausa dramática para reinício (igual ao botão)
+    Serial.println("Aguarde 6 segundos para o retorno do sistema.");
+    delay(6000); 
+    Serial.println("Sistema em operação novamente.");
+  } else {
+    Serial.println("SENHA INCORRETA");
   }
 }
 
 void verificarBotao() {
   int estadoBotao = digitalRead(BOTAO);
   if(estadoBotao == HIGH) {
-    Serial.print("Alarme interrompido pelo usuário");
+    Serial.println("Alarme interrompido pelo botão físico");
     alarmeDisparado = false;
     digitalWrite(LED_AZUL, LOW);
+    Serial.println("Aguarde 6 segundos para o retorno do sistema.");
     delay(6000);
+    Serial.println("Sistema em operação novamente.");
   }
 }
 
 void piscaLed() {
-  long tempoAtual = millis();
-
+  unsigned long tempoAtual = millis();
   if(tempoAtual - ultimoTempoPisca >= intervalo) {
-
     ultimoTempoPisca = tempoAtual;
-
-    if(estadoLed == LOW) {
-      estadoLed = HIGH;
-    } else {
-      estadoLed = LOW;
-    }
+    
+    // Inversão simples do estado (toggle)
+    estadoLed = !estadoLed; 
     digitalWrite(LED_AZUL, estadoLed);
   }
 }
