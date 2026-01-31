@@ -5,10 +5,11 @@
 #define LED_PINO 12
 #define TRIG_PIN 13
 #define ECHO_PIN 14
+#define BUZZ_PIN 25
 
 // --- CONFIGURAÇÕES WI-FI ---
-const char* ssid = "SEU_SSID"; // Nome do WiFi
-const char* password = "SUA_SENHA"; // Em rede aberta, não usar
+const char* ssid = "SEU_SSID"; 
+const char* password = "SUA_SENHA"; 
 
 // Objeto do Servidor Web
 WebServer server(80);
@@ -40,7 +41,6 @@ button{padding:10px 20px;font-size:20px;background-color:#005c9e;color:white;bor
 <p>Digite a senha para desativar:</p>
 <form action="/desativar" method="GET">
 <input type="text" name="senhaInput" placeholder="Senha...">
-
 <button type="submit">DESATIVAR ALARME</button>
 </form>
 </body>
@@ -56,6 +56,10 @@ void setup() {
   // --- Pinos ---
   pinMode(LED_PINO, OUTPUT);
   digitalWrite(LED_PINO, LOW);
+  
+  pinMode(BUZZ_PIN, OUTPUT);
+  digitalWrite(BUZZ_PIN, LOW); 
+  
   pinMode(TRIG_PIN, OUTPUT);
   pinMode(ECHO_PIN, INPUT);
 
@@ -65,7 +69,7 @@ void setup() {
   WiFi.disconnect(true);
   delay(500);
 
-  WiFi.begin(ssid, password); // Em rede aberta, não usar o 'password'
+  WiFi.begin(ssid, password);
 
   unsigned long inicio = millis();
   const unsigned long timeout = 15000;
@@ -86,16 +90,17 @@ void setup() {
 
   // --- Servidor Web ---
   server.on("/", handleRoot);
-  server.on("/desativar", handleForm); // Endpoint que o HTML chama
+  server.on("/desativar", handleForm);
   server.begin();
 
   Serial.println("Servidor Web iniciado");
-  Serial.println("Sistema armado. Limite: 50 cm");
+  Serial.println("Sistema armado. Limite: 15 cm");
 }
 
 void loop() {
   server.handleClient();
 
+  // Só verifica o sensor se o alarme NÃO estiver disparado
   if (!alarmeDisparado) {
     int distanciaAtual = lerDistancia();
 
@@ -109,8 +114,10 @@ void loop() {
     delay(100);
   }
 
+  // Se disparado, toca o terror (Luz e Som)
   if (alarmeDisparado) {
     piscaLed();
+    alarmeSonoro();
   }
 }
 
@@ -127,12 +134,10 @@ void handleForm() {
     senha.toUpperCase();
 
     if (senha == "SENAC") {
-      server.send(200, "text/html",
-        "<h1>SENHA CORRETA</h1><p>Sistema reiniciado.</p><a href='/'>Voltar</a>");
+      server.send(200, "text/html", "<h1>SENHA CORRETA</h1><p>Sistema reiniciado.</p><a href='/'>Voltar</a>");
       resetarSistema();
     } else {
-      server.send(200, "text/html",
-        "<h1>SENHA INCORRETA</h1><a href='/'>Tentar novamente</a>");
+      server.send(200, "text/html", "<h1>SENHA INCORRETA</h1><a href='/'>Tentar novamente</a>");
     }
   } else {
     server.send(400, "text/plain", "Bad Request");
@@ -157,7 +162,13 @@ int lerDistancia() {
 void resetarSistema() {
   Serial.println("Reset via WEB...");
   alarmeDisparado = false;
+  
   digitalWrite(LED_PINO, LOW);
+  digitalWrite(BUZZ_PIN, LOW); 
+  
+  estadoLed = LOW;
+  estadoBuzz = LOW;
+  
   delay(3000);
   Serial.println("Sistema armado novamente.");
 }
@@ -176,6 +187,6 @@ void alarmeSonoro() {
   if (agora - ultimoTempoBuzz >= intervalo) {
     ultimoTempoBuzz = agora;
     estadoBuzz = !estadoBuzz;
-    digitalWrite(LED_PINO, estadoBuzz);
+    digitalWrite(BUZZ_PIN, estadoBuzz);
   }
 }
